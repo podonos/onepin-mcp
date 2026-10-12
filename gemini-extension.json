@@ -1,0 +1,11 @@
+{
+  "name": "onepin",
+  "version": "1.0.0",
+  "description": "Run Onepin voice workflows: pick a workflow, synthesize a script, get the audio back.",
+  "mcpServers": {
+    "onepin": {
+      "httpUrl": "https://mcp.onepin.ai",
+      "description": "Onepin voice workflow server"
+    }
+  }
+}

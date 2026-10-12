@@ -1,0 +1,33 @@
+{
+  "name": "onepin",
+  "displayName": "Onepin",
+  "version": "1.0.0",
+  "minClientVersions": {
+    "cursor": "3.13.0"
+  },
+  "description": "Run Onepin voice workflows: pick a workflow, synthesize a script, get the audio back.",
+  "author": {
+    "name": "Podonos",
+    "email": "support@onepin.ai"
+  },
+  "homepage": "https://docs.onepin.ai",
+  "repository": "https://github.com/podonos/onepin-mcp",
+  "logo": "assets/logo.png",
+  "keywords": [
+    "onepin",
+    "voice",
+    "tts",
+    "audio",
+    "speech",
+    "workflow",
+    "mcp"
+  ],
+  "category": "integrations",
+  "tags": [
+    "onepin",
+    "voice",
+    "tts",
+    "mcp"
+  ],
+  "mcpServers": "./mcp.json"
+}
