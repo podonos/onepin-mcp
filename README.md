@@ -55,6 +55,11 @@ Then authenticate when prompted, or run `/mcp auth onepin`.
 
 Add `https://mcp.onepin.ai` as a custom connector.
 
+Note that Onepin serves a **second, reduced surface** at `https://mcp.onepin.ai/studio`,
+covering everything up to the point audio is generated. It has its own OAuth resource
+identifier and is the URL used for directory submissions — see
+[docs/surfaces.md](docs/surfaces.md). The full surface above is the one to add by hand.
+
 ### Any other MCP client
 
 Point the client at `https://mcp.onepin.ai` using the Streamable HTTP transport. The
