@@ -76,6 +76,14 @@ The registry metadata (`server.json` for `ai.onepin/onepin`) is published from t
 Onepin backend repository, which is the single source of truth for it. It is
 deliberately not duplicated here.
 
+## License
+
+MIT — see [LICENSE](LICENSE). This covers the configuration files in this repository
+only; use of the Onepin service itself is governed by its own terms.
+
+The Onepin name and logo are trademarks of Podonos and are not licensed under the MIT
+License.
+
 ## Support
 
 - Documentation — https://docs.onepin.ai

@@ -12,6 +12,7 @@
   },
   "homepage": "https://docs.onepin.ai",
   "repository": "https://github.com/podonos/onepin-mcp",
+  "license": "MIT",
   "keywords": [
     "onepin",
     "voice",
