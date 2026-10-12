@@ -1,0 +1,79 @@
+# Every file in this repository states the MCP endpoint, and nothing in this repository
+# knows whether that string is still true: the URL is decided in the backend repo
+# (`MCP_PUBLIC_URL`, prod Terraform's `mcp_domain`), whose own test
+# `test_the_public_urls_and_the_route_paths_agree` cannot see these manifests.
+#
+# So this check does not compare config to config. It asks the running service what it
+# advertises as its own resource identifier (RFC 9728) and requires every manifest to
+# agree. That is the only comparison that catches the failure that matters: the endpoint
+# moved and the listings were left behind, which no client reports as an error — they
+# simply stop reaching Onepin.
+#
+# The schedule is the point. A push-only check never fires on the one event this guards
+# against, because that event happens in another repository.
+name: Endpoint agreement
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Manifests agree with the live endpoint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read the resource the service advertises
+        id: live
+        run: |
+          set -euo pipefail
+          META="https://mcp.onepin.ai/.well-known/oauth-protected-resource"
+          if ! BODY=$(curl -fsS --max-time 30 --retry 3 --retry-delay 5 --retry-all-errors "$META"); then
+            echo "::error::Could not read $META after retries. The endpoint advertised by" \
+                 "every manifest in this repo must be publicly reachable — the registry" \
+                 "listing claims it is."
+            exit 1
+          fi
+          RESOURCE=$(printf '%s' "$BODY" | jq -er .resource)
+          echo "service advertises: $RESOURCE"
+          echo "resource=$RESOURCE" >> "$GITHUB_OUTPUT"
+
+      - name: Require every manifest to name it
+        env:
+          RESOURCE: ${{ steps.live.outputs.resource }}
+        run: |
+          set -euo pipefail
+          fail=0
+          check() {
+            local label="$1" actual="$2"
+            if [ "$actual" != "$RESOURCE" ]; then
+              echo "::error file=${label%%:*}::$label is '$actual' but the service advertises '$RESOURCE'"
+              fail=1
+            else
+              printf '  ok  %s\n' "$label"
+            fi
+          }
+          check "server.json: remotes[0].url"            "$(jq -er '.remotes[0].url' server.json)"
+          check "mcp.json: mcpServers.onepin.url"        "$(jq -er '.mcpServers.onepin.url' mcp.json)"
+          check "gemini-extension.json: mcpServers.onepin.httpUrl" \
+                                                         "$(jq -er '.mcpServers.onepin.httpUrl' gemini-extension.json)"
+          # A README is documentation, but this URL in it is what a human copies by hand.
+          grep -qF "$RESOURCE" README.md || {
+            echo "::error file=README.md::README.md does not mention '$RESOURCE'"
+            fail=1
+          }
+          [ "$fail" -eq 0 ] || {
+            echo
+            echo "The endpoint changed in the backend repo and these listings were left behind."
+            echo "Update them, bump server.json's version, and let the publish workflow run."
+            exit 1
+          }
+          echo "All manifests agree with the live endpoint."

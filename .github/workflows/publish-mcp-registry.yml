@@ -1,0 +1,119 @@
+# Publishes server.json to the official MCP Registry (https://registry.modelcontextprotocol.io).
+#
+# This repository is the registry entry's home: the entry describes a URL and a product
+# listing, not a build, so its lifetime is this repo's, not the backend's. That is also
+# why the trigger below is a `push` on `server.json` and not a release tag — in the
+# backend repo, `deploy-prod.yml` creates a `vX.Y.Z` tag on every production release, so
+# a tag trigger there would attempt a publish per release and fail on the duplicate
+# version. Nothing tags this repo per release, so the one meaningful automatic trigger
+# is "the file that describes the listing changed".
+#
+# Published version metadata is IMMUTABLE. An edit to server.json is a new version: bump
+# `version` in the same commit, or the gate below turns the run into a clean no-op.
+#
+# The namespace proof (the apex `onepin.ai` TXT record) lives in the backend repo's
+# Terraform, not here. See docs/mcp-registry.md.
+name: Publish MCP Registry entry
+
+on:
+  push:
+    branches: [main]
+    paths: ["server.json"]
+  workflow_dispatch:
+
+concurrency:
+  group: mcp-registry-publish
+  cancel-in-progress: false
+
+env:
+  # Pinned rather than `latest`: the registry is in preview and its CLI ships breaking
+  # changes. Bump deliberately.
+  MCP_PUBLISHER_VERSION: v1.8.1
+
+jobs:
+  publish:
+    name: Publish server.json
+    runs-on: ubuntu-latest
+    # Holds MCP_PRIVATE_KEY. Give it required reviewers: that key authorizes publishing
+    # ANY server under the ai.onepin namespace, not just this one, so the review is the
+    # thing standing between repo write access and our namespace.
+    environment: mcp-registry
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compare declared version against the registry's latest
+        id: gate
+        run: |
+          set -euo pipefail
+          NAME=$(jq -er .name server.json)
+          VERSION=$(jq -er .version server.json)
+          # Pinned: this workflow publishes one entry, and the Environment's key is what
+          # makes any ai.onepin name publishable. A rename is a new entry plus a
+          # deprecation of the old one (docs/mcp-registry.md), not an edit, so it should
+          # not ride an automatic trigger.
+          test "$NAME" = "ai.onepin/onepin"
+
+          # --retry is load-bearing, not boilerplate: the registry API is slow and
+          # intermittently drops requests (measured 9-24s, with outright timeouts), and
+          # `set -e` would turn one flaky read into a failed publish.
+          PUBLISHED=$(curl -fsS --max-time 60 --retry 3 --retry-delay 5 --retry-all-errors --get \
+            --data-urlencode "search=$NAME" \
+            https://registry.modelcontextprotocol.io/v0.1/servers \
+            | jq -r --arg n "$NAME" '
+                .servers[]
+                | select(.server.name == $n)
+                | select(._meta["io.modelcontextprotocol.registry/official"].isLatest)
+                | .server.version
+              ' | head -1)
+
+          printf 'registry latest: %s   declared: %s\n' "${PUBLISHED:-<none>}" "$VERSION"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [ "$PUBLISHED" = "$VERSION" ]; then
+            echo "Already published; nothing to do."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install mcp-publisher
+        if: steps.gate.outputs.publish == 'true'
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 --retry-all-errors \
+            "https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz" \
+            | tar xz mcp-publisher
+          ./mcp-publisher --help >/dev/null
+
+      - name: Validate server.json
+        if: steps.gate.outputs.publish == 'true'
+        run: ./mcp-publisher validate server.json
+
+      - name: Authenticate to the registry
+        if: steps.gate.outputs.publish == 'true'
+        # DNS, not github-oidc: `login github-oidc` grants io.github.* namespaces and
+        # ours is domain-based (ai.onepin = onepin.ai reversed).
+        run: ./mcp-publisher login dns --domain onepin.ai --private-key "${MCP_PRIVATE_KEY}"
+        env:
+          MCP_PRIVATE_KEY: ${{ secrets.MCP_PRIVATE_KEY }}
+
+      - name: Publish
+        if: steps.gate.outputs.publish == 'true'
+        run: ./mcp-publisher publish server.json
+
+      - name: Confirm the registry agrees
+        if: steps.gate.outputs.publish == 'true'
+        run: |
+          set -euo pipefail
+          curl -fsS --max-time 60 --retry 3 --retry-delay 5 --retry-all-errors --get \
+            --data-urlencode "search=ai.onepin/onepin" \
+            https://registry.modelcontextprotocol.io/v0.1/servers \
+            | jq -e --arg v "${{ steps.gate.outputs.version }}" '
+                .servers[]
+                | select(.server.name == "ai.onepin/onepin")
+                | select(._meta["io.modelcontextprotocol.registry/official"].isLatest)
+                | select(.server.version == $v)
+              ' >/dev/null
+          echo "Registry reports ${{ steps.gate.outputs.version }} as latest."

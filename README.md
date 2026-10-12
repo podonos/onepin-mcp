@@ -66,15 +66,18 @@ dynamic client registration need no further configuration.
 ## Repository contents
 
 ```
+server.json                   Official MCP Registry entry (ai.onepin/onepin)
 mcp.json                      Cursor — MCP server definition
 .cursor-plugin/plugin.json    Cursor — plugin manifest
 gemini-extension.json         Gemini CLI — extension manifest
 assets/                       Marketplace logo
+docs/mcp-registry.md          How the registry entry is published
 ```
 
-The registry metadata (`server.json` for `ai.onepin/onepin`) is published from the
-Onepin backend repository, which is the single source of truth for it. It is
-deliberately not duplicated here.
+`server.json` is the entry published to the official MCP Registry as
+`ai.onepin/onepin`; CI publishes it when its `version` changes. The namespace proof
+behind that name — a TXT record on the `onepin.ai` apex — lives in the Onepin backend
+repository's Terraform, not here. See [docs/mcp-registry.md](docs/mcp-registry.md).
 
 ## License
 
