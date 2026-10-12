@@ -91,29 +91,37 @@ jobs:
         if: steps.gate.outputs.publish == 'true'
         run: ./mcp-publisher validate server.json
 
-      - name: Authenticate to the registry
+      - name: Authenticate and publish
         if: steps.gate.outputs.publish == 'true'
-        # DNS, not github-oidc: `login github-oidc` grants io.github.* namespaces and
-        # ours is domain-based (ai.onepin = onepin.ai reversed).
-        run: ./mcp-publisher login dns --domain onepin.ai --private-key "${MCP_PRIVATE_KEY}"
         env:
           MCP_PRIVATE_KEY: ${{ secrets.MCP_PRIVATE_KEY }}
-
-      - name: Publish
-        if: steps.gate.outputs.publish == 'true'
-        run: ./mcp-publisher publish server.json
+        run: |
+          set -euo pipefail
+          # DNS, not github-oidc: `login github-oidc` grants io.github.* namespaces and
+          # ours is domain-based (ai.onepin = onepin.ai reversed).
+          #
+          # `login dns` takes the key as a flag; mcp-publisher 1.8.1 has no env-var or
+          # key-file input (`mcp-publisher login dns --help`). It is therefore visible in
+          # this job's process list — acceptable on an ephemeral single-tenant runner, and
+          # the reason this job does nothing else. Keep login, publish and logout in one
+          # step for the same reason: the key-bearing window is one step wide.
+          ./mcp-publisher login dns --domain onepin.ai --private-key "$MCP_PRIVATE_KEY"
+          ./mcp-publisher publish server.json
+          ./mcp-publisher logout
 
       - name: Confirm the registry agrees
         if: steps.gate.outputs.publish == 'true'
+        env:
+          EXPECTED: ${{ steps.gate.outputs.version }}
         run: |
           set -euo pipefail
           curl -fsS --max-time 60 --retry 3 --retry-delay 5 --retry-all-errors --get \
             --data-urlencode "search=ai.onepin/onepin" \
             https://registry.modelcontextprotocol.io/v0.1/servers \
-            | jq -e --arg v "${{ steps.gate.outputs.version }}" '
+            | jq -e --arg v "$EXPECTED" '
                 .servers[]
                 | select(.server.name == "ai.onepin/onepin")
                 | select(._meta["io.modelcontextprotocol.registry/official"].isLatest)
                 | select(.server.version == $v)
               ' >/dev/null
-          echo "Registry reports ${{ steps.gate.outputs.version }} as latest."
+          echo "Registry reports $EXPECTED as latest."
