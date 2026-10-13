@@ -109,19 +109,32 @@ jobs:
           ./mcp-publisher publish server.json
           ./mcp-publisher logout
 
+      # The publish above is what succeeded or failed; this only confirms it landed.
+      # It polls rather than asking once: the search index is eventually consistent
+      # behind a write, and a single immediate query reported "not published" for a
+      # publish that had in fact gone through (run 38360985840).
       - name: Confirm the registry agrees
         if: steps.gate.outputs.publish == 'true'
         env:
           EXPECTED: ${{ steps.gate.outputs.version }}
         run: |
-          set -euo pipefail
-          curl -fsS --max-time 60 --retry 3 --retry-delay 5 --retry-all-errors --get \
-            --data-urlencode "search=ai.onepin/onepin" \
-            https://registry.modelcontextprotocol.io/v0.1/servers \
-            | jq -e --arg v "$EXPECTED" '
-                .servers[]
-                | select(.server.name == "ai.onepin/onepin")
-                | select(._meta["io.modelcontextprotocol.registry/official"].isLatest)
-                | select(.server.version == $v)
-              ' >/dev/null
-          echo "Registry reports $EXPECTED as latest."
+          set -uo pipefail
+          for attempt in $(seq 1 12); do
+            if curl -fsS --max-time 60 --retry 2 --retry-all-errors --get \
+                 --data-urlencode "search=ai.onepin/onepin" \
+                 https://registry.modelcontextprotocol.io/v0.1/servers \
+               | jq -e --arg v "$EXPECTED" '
+                   .servers[]
+                   | select(.server.name == "ai.onepin/onepin")
+                   | select(._meta["io.modelcontextprotocol.registry/official"].isLatest)
+                   | select(.server.version == $v)
+                 ' >/dev/null; then
+              echo "Registry reports $EXPECTED as latest (attempt $attempt)."
+              exit 0
+            fi
+            echo "Not indexed yet (attempt $attempt); retrying in 15s."
+            sleep 15
+          done
+          echo "::error::Published, but the registry did not report $EXPECTED as latest within ~3 minutes." \
+               "Check https://registry.modelcontextprotocol.io/v0.1/servers?search=ai.onepin/onepin before republishing."
+          exit 1
