@@ -56,18 +56,51 @@ jobs:
           # not ride an automatic trigger.
           test "$NAME" = "ai.onepin/onepin"
 
-          # --retry is load-bearing, not boilerplate: the registry API is slow and
-          # intermittently drops requests (measured 9-24s, with outright timeouts), and
-          # `set -e` would turn one flaky read into a failed publish.
-          PUBLISHED=$(curl -fsS --max-time 60 --retry 3 --retry-delay 5 --retry-all-errors --get \
-            --data-urlencode "search=$NAME" \
-            https://registry.modelcontextprotocol.io/v0.1/servers \
-            | jq -r --arg n "$NAME" '
-                .servers[]
+          # Three deliberate choices here, each paid for by an observed failure:
+          #
+          # --retry, because the registry API is slow and intermittently drops requests
+          # (measured 9-24s, with outright timeouts) and `set -e` would turn one flaky
+          # read into a failed publish.
+          #
+          # -o a file rather than a pipe, because curl cannot rewind stdout: when a
+          # transfer dies mid-body the bytes already written stay, and the retry appends
+          # a second body. Seen once as `jq: parse error: Invalid numeric literal at
+          # line 2`. A regular file is truncated per attempt, so the corruption cannot
+          # happen.
+          #
+          # jq's first(...) // "" rather than `| head -1`, because head closing the pipe
+          # early can hand jq a SIGPIPE, and pipefail then fails the step for a read that
+          # actually worked.
+          latest() {
+            curl -fsS --max-time 60 --retry 3 --retry-delay 5 --retry-all-errors --get \
+              --data-urlencode "search=$NAME" \
+              -o "$RUNNER_TEMP/registry.json" \
+              https://registry.modelcontextprotocol.io/v0.1/servers
+            jq -r --arg n "$NAME" '
+              first(
+                .servers[]?
                 | select(.server.name == $n)
                 | select(._meta["io.modelcontextprotocol.registry/official"].isLatest)
                 | .server.version
-              ' | head -1)
+              ) // ""
+            ' "$RUNNER_TEMP/registry.json"
+          }
+
+          # An empty answer is not proof the entry is unpublished: the search index lags
+          # a write (run 38360985840 published 1.0.1 and the next read did not see it).
+          # Believing one empty read here means attempting to publish a version that
+          # already exists, which the registry refuses because version metadata is
+          # immutable - a red run for a repository that is actually fine. A genuinely
+          # first publish pays 30s for this, once.
+          PUBLISHED=""
+          for attempt in 1 2 3; do
+            PUBLISHED=$(latest)
+            [ -n "$PUBLISHED" ] && break
+            if [ "$attempt" -lt 3 ]; then
+              echo "no published entry found (attempt $attempt); the index lags writes, retrying in 15s"
+              sleep 15
+            fi
+          done
 
           printf 'registry latest: %s   declared: %s\n' "${PUBLISHED:-<none>}" "$VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
@@ -122,13 +155,16 @@ jobs:
           for attempt in $(seq 1 12); do
             if curl -fsS --max-time 60 --retry 2 --retry-all-errors --get \
                  --data-urlencode "search=ai.onepin/onepin" \
+                 -o "$RUNNER_TEMP/confirm.json" \
                  https://registry.modelcontextprotocol.io/v0.1/servers \
-               | jq -e --arg v "$EXPECTED" '
-                   .servers[]
-                   | select(.server.name == "ai.onepin/onepin")
-                   | select(._meta["io.modelcontextprotocol.registry/official"].isLatest)
-                   | select(.server.version == $v)
-                 ' >/dev/null; then
+               && jq -e --arg v "$EXPECTED" '
+                   first(
+                     .servers[]?
+                     | select(.server.name == "ai.onepin/onepin")
+                     | select(._meta["io.modelcontextprotocol.registry/official"].isLatest)
+                     | select(.server.version == $v)
+                   )
+                 ' "$RUNNER_TEMP/confirm.json" >/dev/null; then
               echo "Registry reports $EXPECTED as latest (attempt $attempt)."
               exit 0
             fi
