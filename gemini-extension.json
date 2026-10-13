@@ -1,7 +1,7 @@
 {
   "name": "onepin",
   "version": "1.0.0",
-  "description": "Run Onepin voice workflows: pick a workflow, synthesize a script, get the audio back.",
+  "description": "AI Voice Production Agent: picks from 30+ TTS models, fixes pronunciation, validates every line.",
   "mcpServers": {
     "onepin": {
       "httpUrl": "https://mcp.onepin.ai",

@@ -5,7 +5,7 @@
   "minClientVersions": {
     "cursor": "3.13.0"
   },
-  "description": "Run Onepin voice workflows: pick a workflow, synthesize a script, get the audio back.",
+  "description": "AI Voice Production Agent: picks from 30+ TTS models, fixes pronunciation, validates every line.",
   "author": {
     "name": "Podonos",
     "email": "support@onepin.ai"
