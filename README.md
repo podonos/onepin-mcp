@@ -8,6 +8,7 @@ Protocol server that turns scripts into speech.
 | Endpoint | `https://mcp.onepin.ai` (Streamable HTTP) |
 | Authentication | OAuth 2.0 — browser sign-in, no API key to copy |
 | Registry entry | [`ai.onepin/onepin`](https://registry.modelcontextprotocol.io/v0/servers?search=ai.onepin) |
+| Smithery listing | [smithery.ai/servers/podonos/onepin](https://smithery.ai/servers/podonos/onepin) |
 | Documentation | https://docs.onepin.ai |
 
 An Onepin account is required. The server is hosted by Podonos; this repository
