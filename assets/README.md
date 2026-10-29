@@ -14,18 +14,21 @@ colour is fixed here rather than left to the viewer's theme.
 ## MCP clients and directories do not read these files
 
 `server.json`'s `icons` and the backend's `serverInfo.icons`
-(`src/donut/api/mcp/server.py`) both point at **`https://onepin.ai/apple-icon.png`** — the
-live site's asset, not anything in this directory. The spec asks consumers to require an
+(`src/donut/api/mcp/server.py`) both point at **`https://onepin.ai/onepin-mark-on-light.png`**
+and **`…-on-dark.png`** — the live site's assets (`podonos/donut-landing` → `public/`), not
+anything in this directory. Two of them, because those are transparent single-colour marks
+and neither colour is readable on both backgrounds; `theme` tells the consumer which to
+use. Note this is the opposite trade from the files above: they carry an opaque tile so one
+file works anywhere, which is right for a marketplace thumbnail and wrong for a listing
+card, where the tile shows as a black box on a light surface. The spec asks consumers to require an
 icon URL on the server's own domain, and `raw.githubusercontent.com` is not it, so there is
 nowhere here to point them.
 
 The consequence is a drift seam worth knowing before you touch the mark: **editing
 `logo.svg` and regenerating `logo.png` changes the Cursor and Cline listings and nothing
 else.** An MCP client or a directory keeps showing whatever the website serves. Changing
-the mark everywhere means shipping it in the frontend repo too, and the fixed-colour
-reasoning above is the reason the PNG — not `icon.svg` — is what those two declare: a
-renderer that does not evaluate `prefers-color-scheme` gets the default fill and can draw
-the mark invisible against its own background.
+the mark everywhere means regenerating the two files in `podonos/donut-landing` under
+`public/` as well — its `public/README.md` is the other half of this note.
 
 Regenerate after editing `logo.svg`:
 
