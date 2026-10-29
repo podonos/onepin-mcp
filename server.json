@@ -3,8 +3,20 @@
   "name": "ai.onepin/onepin",
   "title": "Onepin",
   "description": "AI Voice Production Agent: picks from 30+ TTS models, fixes pronunciation, validates every line.",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "websiteUrl": "https://onepin.ai",
+  "repository": {
+    "url": "https://github.com/podonos/onepin-mcp",
+    "source": "github",
+    "id": "1415222027"
+  },
+  "icons": [
+    {
+      "src": "https://onepin.ai/apple-icon.png",
+      "mimeType": "image/png",
+      "sizes": ["180x180"]
+    }
+  ],
   "remotes": [
     {
       "type": "streamable-http",
