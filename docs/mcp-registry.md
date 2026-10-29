@@ -13,6 +13,7 @@ name we are allowed to publish it under.
 | Registry name | `ai.onepin/onepin` |
 | Endpoint | `https://mcp.onepin.ai` (streamable-http) |
 | Metadata | [`server.json`](../server.json) at the repo root |
+| Listing mark | `https://onepin.ai/apple-icon.png` — the live site's asset, **not** [`assets/`](../assets/README.md) |
 | Namespace proof | apex `onepin.ai` TXT record — **in the backend repo's Terraform** |
 | First published | 2026-10-08 |
 
