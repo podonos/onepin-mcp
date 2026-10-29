@@ -3,8 +3,8 @@
   "name": "ai.onepin/onepin",
   "title": "Onepin",
   "description": "AI Voice Production Agent: picks from 30+ TTS models, fixes pronunciation, validates every line.",
-  "version": "1.0.1",
-  "websiteUrl": "https://docs.onepin.ai",
+  "version": "1.0.2",
+  "websiteUrl": "https://onepin.ai",
   "remotes": [
     {
       "type": "streamable-http",
