@@ -12,20 +12,20 @@
   },
   "icons": [
     {
-      "src": "https://onepin.ai/onepin-mark-on-light.png",
-      "mimeType": "image/png",
-      "sizes": [
-        "512x512"
-      ],
-      "theme": "light"
-    },
-    {
-      "src": "https://onepin.ai/onepin-mark-on-dark.png",
+      "src": "https://onepin.ai/onepin-icon-on-dark.png",
       "mimeType": "image/png",
       "sizes": [
         "512x512"
       ],
       "theme": "dark"
+    },
+    {
+      "src": "https://onepin.ai/onepin-icon-on-light.png",
+      "mimeType": "image/png",
+      "sizes": [
+        "512x512"
+      ],
+      "theme": "light"
     }
   ],
   "remotes": [

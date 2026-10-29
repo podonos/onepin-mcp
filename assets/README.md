@@ -14,15 +14,21 @@ colour is fixed here rather than left to the viewer's theme.
 ## MCP clients and directories do not read these files
 
 `server.json`'s `icons` and the backend's `serverInfo.icons`
-(`src/donut/api/mcp/server.py`) both point at **`https://onepin.ai/onepin-mark-on-light.png`**
-and **`…-on-dark.png`** — the live site's assets (`podonos/donut-landing` → `public/`), not
-anything in this directory. Two of them, because those are transparent single-colour marks
-and neither colour is readable on both backgrounds; `theme` tells the consumer which to
-use. Note this is the opposite trade from the files above: they carry an opaque tile so one
-file works anywhere, which is right for a marketplace thumbnail and wrong for a listing
-card, where the tile shows as a black box on a light surface. The spec asks consumers to require an
-icon URL on the server's own domain, and `raw.githubusercontent.com` is not it, so there is
-nowhere here to point them.
+(`src/donut/api/mcp/server.py`) both point at **`https://onepin.ai/onepin-icon-on-dark.png`**
+and **`…-on-light.png`** — the live site's assets (`podonos/donut-landing` → `public/`), not
+anything in this directory. The spec asks consumers to require an icon URL on the server's
+own domain, and `raw.githubusercontent.com` is not it, so there is nowhere here to point
+them.
+
+Those two carry a tile for the same reason the files above do, and the reason is worth
+keeping straight: the tile is NOT about matching a card's background, it is about
+surviving a consumer that does not look. The MCP `theme` field lets a consumer pick the
+colourway that melts into its card, but the spec requires nobody to read it — its only
+guidance is "clients should select the most appropriate icon based on their UI
+requirements", with no ordering rule and no fallback. A transparent mark picked wrongly is
+*invisible*; a tiled one is merely the wrong colour. The names say which background each
+file is FOR, not what colour it is, because `theme: "light"` means "for a light
+background" and therefore names the DARK-marked file.
 
 The consequence is a drift seam worth knowing before you touch the mark: **editing
 `logo.svg` and regenerating `logo.png` changes the Cursor and Cline listings and nothing
